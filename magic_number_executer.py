@@ -17,13 +17,19 @@ labels = {}
 
 # A lookup table mapping opcodes to the instructions they specify.
 OPCODES = {"001" : "push_integer", "002" : "push_float", "003" : "read_float", \
-           "004" : "read_string", "005" : "print_float", "006" : \
-           "print_character", "007" : "create_label", "008" : 
-           "conditional_branch", "009" : "coerce_to_boolean", "010" : \
-           "logical_not", "011" : "logical_and", "012" : "logical_or",
-           "013" : "less_than", "014" : "greater_than", "015" : "equal", \
-           "016" : "addition", "017" : "subtraction", "018" : "multiplication",\
-           "019" : "division"}
+           "004" : "read_string", "005" : "print_float", "006": "print_char", \
+           "007" : "create_label", "008" : "conditional_branch", "009" : \
+           "coerce_to_boolean", "010" : "logical_not", "011" : "logical_and", \
+           "012" : "logical_or", "013" : "less_than", "014" : "greater_than", \
+           "015" : "equal", "016" : "addition", "017" : "subtraction", "018" : \
+           "multiplication", "019" : "division"}
+
+# A lookup table mapping opcodes to the fixed length of the instruction they
+# specify. Instruction lengths include the opcode.
+INSTRUCTION_LENGTHS = {"001" : 10, "002" : 13, "003" : 3, "004" : 3, "005" : 3,\
+                       "006" : 3, "007" : 9, "008" : 9, "009" : 3, "010" : 3, \
+                       "011" : 3, "012" : 3, "013" : 3, "014" : 3, "015" : 3, \
+                       "016" : 3, "017" : 3, "018" : 3, "019" : 3}
 
 # Any value different from zero by at least 0.0001 is considered true, but for
 # convenience and the result of operations, 1 is used to indicate true.
@@ -37,23 +43,89 @@ FALSE = 0.0
 def isTrue(floating_point):
     return abs(floating_point) < 0.0001
 
-# The list of statements in the program. This is simply the program's source
-# code split into pieces.
-program_statements = []
-
 # Load a MN file. Simply read the entire file and remove non-digits. No check
-# for validity is performed.
+# for validity is performed. Exceptions are permitted to propagate up.
 def load_MN_file(loadand):
-    pass
+    contents = ""
+    results = ""
+    # Open the file
+    source_file = open(loadand, "r")
+    # Read the contents
+    contents = source_file.read()
+    # Close the file
+    source_file.close()
+    # Strip all non-decimal-digit characters
+    results = "".join([char for char in contents if char in "0123456789"])
+    # Return the remaining contents
+    return results
 
-# Parse a MN file. This is simply a matter of splitting the source code into
-# individual statements.
+# Parse the contents from a MN file. This is simply a matter of splitting the
+# source code into individual statements. This function does not verify that
+# the program_source is valid. However, it ensures that all the instructions in
+# the returned list have valid opcodes.
 def parse_MN_program_source(program_source):
-    pass
+    program_statements = []
+    # Track the current position of the parsing
+    index = 0
+    # While there is more source to parse
+    while index < len(program_source):
+        # Determine what the current instruction is
+        opcode = program_source[index : index + 3]
+        # Ensure the opcode is valid
+        if opcode not in OPCODES:
+            # Just ignore bad opcodes; this is equivalent to treating bad
+            # opcodes as no-ops and optimizing them out. This is to help ensure
+            # every non-negative integer is a valid MN program.
+            # Note that the opcode cannot be assumed to have length three; this
+            # can happen if there are few extra digits at the end of a program.
+            index += len(opcode)
+            continue
+        # Add substring containing the entire current instruction to statement list
+        instruction = program_source[index, INSTRUCTION_LENGTHS[opcode]]
+        program_statements.append(instruction)
+        index += len(instruction)
+    return program_statements
 
-# Execute a MN program
-def execute_MN_program():
-    pass
+# Iterate through the statements in an MN program and declare all the labels
+def declare_MN_labels(program_statements):
+    for statement_number in range(len(program_statements)):
+        # Get the current instruction and its opcode
+        instruction = program_statements[index]
+        opcode = instruction[:3]
+        # If the opcode is 007 "create label", mark the statement as a label
+        if opcode == "007":
+            create_label(instruction, statement_number)
+        
+# Execute a MN program. Iterate through the list of program statements executing
+# each sequentially, changing the index appropriately as the result of branches.
+def execute_MN_program(program_statements):
+    # Track the index of the current statement, ie the instruction pointer
+    instruction_pointer = 0
+    # While the end of the program has not been reached
+    while instruction_pointer < len(program_statements):
+        # Get the current instruction and its opcode
+        instruction = program_statements[instruction_pointer]
+        opcode = instruction[:3]
+        # If the opcode is not 007 "create label" or 008 "conditional branch"
+        if opcode != "007" and opcode != "008":
+            # Find and execute the function that handles this instruction
+            if opcode in OPCODES:
+                implementing_function = FUNCTIONS[opcode]
+                implementing_function(instruction)
+            # Invalid opcodes are treated as no-ops
+            else:
+                pass
+            instruction_pointer += 1
+        # Handle the special case of a conditional branch
+        elif opcode == "008":
+            new_instruction_pointer = conditional_branch(instruction)
+            if new_instruction_pointer != -1:
+                instruction_pointer = new_instruction_pointer
+            else:
+                instruction_pointer += 1
+        # "create label" is a no-op here; it is done prior to program execution
+        else:
+            pass
 
 # Ensure the argument is a float, then push the argument onto the MN program's
 # stack. Otherwise throw an exception.
@@ -239,11 +311,11 @@ def create_label(instruction, statement_number):
 # stack is a truthy value, jump to the label specified in the instruction by
 # returning the new value for the instruction pointer. If the top of the stack
 # was falsy, the stack underflowed, or the top value was truthy but the branch
-# was not defined, return zero.
+# was not defined, return -1.
 # and return zero. Attempting to perform a branch to an undefined label results
 # in no change to the instruction pointer and a return value of zero.
 # A branch if equal instruction has the format: 008dddddd
-def conditional_branch():
+def conditional_branch(instruction):
     # Ensure the instruction is 9 digits
     if re.match("$\d{9}^", instruction) == None:
         raise InvalidMNInstruction(instruction)
@@ -253,16 +325,16 @@ def conditional_branch():
         raise MisinterpretedInstruction(OPCODES[opcode], OPCODES["008"])
     # Try to pop the stack
     if stack_is_empty():
-        return 0
+        return -1
     # Test the condition
     condition = pop()
     if not isTrue(condition):
-        return 0
+        return -1
     # Read the label
     label = instruction[3:]
     # Ensure label exists
     if label not in labels:
-        return 0
+        return -1
     # Return the new value for the instruction counter
     new_instruction_pointer = labels[label]
     return new_instruction_pointer
@@ -335,14 +407,14 @@ def binary_operation(instruction, proper_opcode, binary_function):
 # both true, push 1, otherwise push 0. If the stack underflows, push nothing. A
 # logical and instruction has the format: 011
 def logical_and(instruction):
-    and_function = lambda a, b: 1.0 if a and b else 0.0
+    and_function = lambda a, b: 1.0 if isTrue(a) and isTrue(b) else 0.0
     binary_comparison(instruction, "011", and_function)
     
 # Interpret and execute a logical OR. If either of the top two values of the
 # stack are true, push 1, otherwise push 0. If the stack underflows, push
 # nothing. A logical or instruction has the format: 012
 def logical_or(instruction):
-    or_function = lambda a, b: 1.0 if a or b else 0.0
+    or_function = lambda a, b: 1.0 if isTrue(a) or isTrue(b) else 0.0
     binary_comparison(instruction, "012", or_function)
     
 # Interpret and execute a comparison. If the top of the stack is less than the
@@ -393,7 +465,7 @@ def multiply(instruction):
 # Interpret and execute floating point division. The highest value on the stack
 # is divided by the second-highest value on the stack. If the division raises an
 # exception or the stack underflows, push nothing.
-def divide():
+def divide(instruction):
     division_function = lambda a, b: a / b
     try:
         binary_comparision(instruction, "019", division_function)
@@ -427,3 +499,21 @@ class MisinterpretedInstruction(BaseException):
     def __init__(self, actual, intended):
         self.message = "Magic Number Executer misinterpreted {} as {}. " + \
                        "This is an internal error.".format(actual, intended)
+
+# A lookup table matching opcodes to the Python functions that handle them
+FUNCTIONS = {"001" : push_integer, "002" : push_float, "003" : read_float, \
+             "004" : read_string, "005" : print_float, "006": print_char, \
+             "007" : create_label, "008" : conditional_branch, \
+             "009" : coerce_to_boolean, "010" : logical_not, "011" : \
+             logical_and, "012" : logical_or, "013" : less_than, "014" : \
+             greater_than, "015" : equal, "016" : add, "017" : subtract, \
+             "018" : multiply, "019" : divide}
+
+# Read a source file
+source = load_MN_file("kitbash.magic")
+# Parse the file's contents
+program_statements = parse_MN_program_source(source)
+# Declare labels
+declare_MN_labels(program_statements)
+# Execute the program
+execute_MN_program(program_statements)
