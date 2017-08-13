@@ -1,0 +1,13 @@
+Take two numbers from the user, add them, and output the sum. This and the
+primality checker make MN a valid programming language according to
+codegolf.stackexchange.com
+
+Read two floats, discarding the "successful read" flag each time.
+003
+020
+003
+020
+Add
+016
+Print result
+005

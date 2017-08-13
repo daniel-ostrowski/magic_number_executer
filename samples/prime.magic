@@ -1,0 +1,81 @@
+Primality test using Wilson's Theorem, which states that a natural number p
+above one is prime if and only if ((p - one)! + one) % p == zero
+
+Using a factorial means the range of inputs where this method works is sharply
+limited by the accuracy of a float. As a result, it only works for inputs that
+are integers in the range [two, nineteen]. However, nothing in this program
+relies on the range of values being limited; this is a general purpose
+algorithm, aside from two and three being handled as special cases.
+
+Get a character
+003
+Remove the one that signals a successful read
+020
+Make special checks for two and three. These make this program trivially not
+stack clean; they could branch to special labels to ensure cleanness
+021
+0010000002
+015
+008000004
+021
+0010000003
+015
+008000004
+Save a copy of the input to use as a divisor later
+021
+Subtract one
+0011000001
+016
+Multiply by negative one to mark the end of the factorial later on
+0011000001
+018
+Get a positive copy of (the original input minus one)
+021
+0011000001
+018
+Subract one from that copy
+0011000001
+016
+Push the current top minus one
+021
+0011000001
+016
+Start a loop: push current top minus one until top is zero
+007000000
+021
+0011000001
+016
+021
+008000000
+Pop the extraneous zero from the top
+020
+Start a loop: multiply while the top is positive. This makes sense because the
+highest factor of the factorial was made negative when pushed onto the stack
+007000001
+Multiply
+018
+Continue if zero less than top
+021
+0010000000
+013
+008000001
+Reverse the sign to make positive
+0011000001
+018
+Add one
+0010000001
+016
+Take top of stack modulo original input (both are automatically cast to ints)
+022
+Test the top of the stack, printing "p" if remainder is zero and printing "c"
+otherwise
+008000002
+007000004
+0010000112
+006
+0010000001
+008000003
+007000002
+0010000099
+006
+007000003

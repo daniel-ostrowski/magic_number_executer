@@ -1,0 +1,16 @@
+Implements the "truth machine" program. Get a value from the user, either zero
+or one. If a one was read, print one forever, if zero was read, print zero and
+quit. Assume the input is valid.
+003
+020
+008000000
+0010000001
+008000001
+007000000
+0010000001
+021
+005
+008000000
+007000001
+0010000000
+005
